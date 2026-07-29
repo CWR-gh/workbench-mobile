@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>工作台</title>
+<!-- PWA / iOS 添加到桌面 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="工作台">
+<meta name="theme-color" content="#F5F5F7">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%234F46E5' width='100' height='100' rx='20'/><text x='50' y='68' font-size='56' text-anchor='middle' fill='white'>⚡</text></svg>">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;工作台&quot;,&quot;short_name&quot;:&quot;工作台&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#F5F5F7&quot;,&quot;theme_color&quot;:&quot;#4F46E5&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%234F46E5' width='100' height='100' rx='20'/><text x='50' y='68' font-size='56' text-anchor='middle' fill='white'>⚡</text></svg>&quot;,&quot;sizes&quot;:&quot;100x100&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --primary:#4F46E5;--primary-light:#EEF2FF;--bg:#F5F5F7;
+  --card:#FFFFFF;--text:#1F2937;--text-secondary:#6B7280;
+  --text-muted:#9CA3AF;--border:#E5E7EB;--danger:#EF4444;
+  --success:#10B981;--warning:#F59E0B;--info:#3B82F6;
+  --sidebar-w:64px;--shadow:0 1px 3px rgba(0,0,0,.06);
+  --shadow-md:0 2px 8px rgba(0,0,0,.08);
+  --radius:14px;--radius-sm:10px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.5;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:hidden;
+  height:100vh;height:-webkit-fill-available;
+}
+
+#app{
+  display:flex;height:100vh;height:-webkit-fill-available;
+  max-width:480px;margin:0 auto;position:relative;
+}
+
+/* ── Left Sidebar ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--card);display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+  padding:12px 0;z-index:100;
+}
+.sidebar-header{
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0 16px;border-bottom:1px solid var(--border);
+  margin-bottom:8px;
+}
+.sidebar-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--primary),#818CF8);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;font-weight:600;
+}
+.sidebar-logo{font-size:20px;margin-bottom:4px;}
+
+.sidebar-nav{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 6px;}
+.sidebar-tab{
+  width:100%;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:10px 4px;border:none;background:none;border-radius:12px;
+  cursor:pointer;color:var(--text-muted);font-size:10px;font-family:inherit;
+  transition:.15s;-webkit-tap-highlight-color:transparent;position:relative;
+}
+.sidebar-tab .tab-emoji{font-size:22px;transition:.15s;}
+.sidebar-tab.active{color:var(--primary);background:var(--primary-light);}
+.sidebar-tab:active{background:#F3F4F6;}
+.sidebar-tab .tab-badge{
+  position:absolute;top:6px;right:4px;min-width:16px;height:16px;
+  border-radius:8px;background:var(--danger);color:#fff;font-size:9px;
+  display:flex;align-items:center;justify-content:center;padding:0 5px;
+}
+
+/* ── Main Content ── */
+.main{
+  flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;
+}
+
+.page-header{
+  padding:16px;background:var(--bg);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.page-header h2{font-size:18px;font-weight:700;}
+.page-header .header-date{font-size:12px;color:var(--text-secondary);}
+
+.page-content{
+  flex:1;overflow-y:auto;padding:0 14px 14px;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(14px + var(--safe-bottom));
+}
+
+/* ── Page visibility ── */
+.page{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.page.active{display:flex;}
+
+/* ── Today's Tasks ── */
+.task-section-label{
+  font-size:11px;font-weight:600;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.5px;
+  margin:14px 0 6px;padding-left:2px;
+}
+.task-card{
+  background:var(--card);border-radius:var(--radius-sm);
+  padding:12px 14px;margin-bottom:6px;box-shadow:var(--shadow);
+  display:flex;align-items:flex-start;gap:10px;transition:.15s;
+  border-left:3px solid transparent;
+}
+.task-card.done{opacity:.5;border-left-color:var(--success);}
+.task-card .task-time{
+  font-size:12px;font-weight:600;color:var(--primary);
+  min-width:42px;padding-top:1px;
+}
+.task-card .task-body{flex:1;min-width:0;}
+.task-card .task-text{font-size:14px;word-break:break-word;}
+.task-card.done .task-text{text-decoration:line-through;color:var(--text-muted);}
+.task-card .task-note{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.task-card .task-actions{display:flex;gap:4px;flex-shrink:0;align-items:center;}
+.task-btn{
+  width:30px;height:30px;border-radius:50%;border:none;background:transparent;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);-webkit-tap-highlight-color:transparent;
+}
+.task-btn.check:active{background:#D1FAE5;color:var(--success);}
+.task-btn.edit:active{background:#EEF2FF;color:var(--primary);}
+.task-btn.del:active{background:#FEE2E2;color:var(--danger);}
+
+.add-task-row{display:flex;gap:8px;margin-top:10px;}
+.add-task-row input,.add-task-row select{
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px;font-size:13px;outline:none;background:var(--card);
+  font-family:inherit;transition:.15s;
+}
+.add-task-row input:focus,.add-task-row select:focus{border-color:var(--primary);}
+.add-task-row input{flex:1;}
+.add-task-row select{width:72px;color:var(--text);}
+.btn-sm{
+  border:none;border-radius:var(--radius-sm);padding:8px 14px;
+  font-size:13px;font-weight:600;cursor:pointer;transition:.15s;
+  -webkit-tap-highlight-color:transparent;white-space:nowrap;
+  font-family:inherit;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:active{background:#4338CA;}
+
+/* Inline edit */
+.task-card.editing .task-text-wrap{display:none;}
+.task-card .task-edit-wrap{display:none;}
+.task-card.editing .task-edit-wrap{display:flex;gap:6px;flex:1;}
+.task-card.editing .task-actions{display:none;}
+.task-card .task-edit-wrap input{
+  flex:1;border:1.5px solid var(--primary);border-radius:8px;
+  padding:6px 10px;font-size:14px;outline:none;font-family:inherit;
+}
+.task-card .task-edit-wrap .btn-sm{padding:6px 10px;font-size:12px;}
+
+/* ── Learning ── */
+.learn-card{
+  background:var(--card);border-radius:var(--radius);padding:16px;
+  margin-bottom:10px;box-shadow:var(--shadow);
+}
+.learn-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.learn-card-header h3{font-size:15px;font-weight:600;}
+.learn-card-header .learn-date{font-size:11px;color:var(--text-muted);}
+
+.learn-subject{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6;}
+.learn-subject:last-child{border-bottom:none;}
+.learn-subject .sub-icon{
+  width:36px;height:36px;border-radius:10px;display:flex;
+  align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+}
+.learn-subject .sub-info{flex:1;min-width:0;}
+.learn-subject .sub-name{font-size:13px;font-weight:500;}
+.learn-subject .sub-meta{font-size:11px;color:var(--text-secondary);margin-top:1px;}
+.learn-subject .sub-progress{width:80px;flex-shrink:0;}
+.learn-subject .progress-bar{
+  height:6px;background:#F3F4F6;border-radius:3px;overflow:hidden;margin-bottom:3px;
+}
+.learn-subject .progress-fill{height:100%;border-radius:3px;transition:width .4s;}
+.learn-subject .progress-text{font-size:10px;color:var(--text-secondary);text-align:right;}
+.learn-subject .sub-actions{display:flex;gap:2px;flex-shrink:0;}
+.learn-subject .sub-btn{
+  width:26px;height:26px;border-radius:50%;border:none;background:transparent;
+  font-size:13px;cursor:pointer;color:var(--text-muted);
+  display:flex;align-items:center;justify-content:center;
+}
+.learn-subject .sub-btn:active{background:#F3F4F6;}
+.learn-subject .sub-btn.plus:active{color:var(--success);}
+.learn-subject .sub-btn.minus:active{color:var(--warning);}
+.learn-subject .sub-btn.del:active{color:var(--danger);}
+
+.add-learn-row{display:flex;gap:8px;margin-top:12px;}
+.add-learn-row input{
+  flex:1;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px;font-size:13px;outline:none;background:var(--card);
+  font-family:inherit;
+}
+.add-learn-row input:focus{border-color:var(--primary);}
+
+.learn-stats{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;
+}
+.learn-stat{
+  background:var(--card);border-radius:var(--radius-sm);padding:12px;
+  text-align:center;box-shadow:var(--shadow);
+}
+.learn-stat .stat-num{font-size:22px;font-weight:700;color:var(--primary);}
+.learn-stat .stat-label{font-size:10px;color:var(--text-secondary);margin-top:2px;}
+
+/* ── Modal overlay ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal-overlay.hidden{display:none;}
+.modal-box{
+  background:var(--card);border-radius:var(--radius) var(--radius) 0 0;
+  width:100%;max-width:480px;padding:20px 16px calc(16px + var(--safe-bottom));
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-box h3{font-size:17px;margin-bottom:14px;}
+.modal-box input,.modal-box select{
+  width:100%;padding:10px 14px;border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);font-size:14px;margin-bottom:10px;
+  outline:none;font-family:inherit;background:#FAFAFA;
+}
+.modal-box input:focus{border-color:var(--primary);}
+.modal-box .btn-row{display:flex;gap:8px;margin-top:6px;}
+.modal-box .btn-row .btn-sm{flex:1;padding:10px;}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  background:var(--text);color:#fff;padding:10px 20px;
+  border-radius:20px;font-size:13px;z-index:999;opacity:0;
+  transition:opacity .3s;pointer-events:none;
+}
+.toast.show{opacity:1;}
+
+/* ── Empty state ── */
+.empty-state{text-align:center;color:var(--text-muted);padding:32px 0;font-size:13px;}
+.empty-state .emoji{font-size:40px;display:block;margin-bottom:8px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ═══════ Sidebar ═══════ -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-logo">⚡</span>
+  </div>
+  <div class="sidebar-nav">
+    <button class="sidebar-tab active" data-page="tasks" onclick="switchPage('tasks')">
+      <span class="tab-emoji">📋</span>今日<div style="font-size:9px">任务</div>
+    </button>
+    <button class="sidebar-tab" data-page="learn" onclick="switchPage('learn')">
+      <span class="tab-emoji">📚</span>学习<div style="font-size:9px">情况</div>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════ Main Content ═══════ -->
+
+<!-- ── Page: 今日任务 ── -->
+<div class="page active" id="page-tasks">
+  <div class="page-header">
+    <h2>今日任务</h2>
+    <span class="header-date" id="tasksDate"></span>
+  </div>
+  <div class="page-content" id="tasksContent">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+<!-- ── Page: 学习情况 ── -->
+<div class="page" id="page-learn">
+  <div class="page-header">
+    <h2>学习情况</h2>
+    <span class="header-date" id="learnDate"></span>
+  </div>
+  <div class="page-content" id="learnContent">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<!-- Task edit modal -->
+<div class="modal-overlay hidden" id="taskModal">
+  <div class="modal-box">
+    <h3 id="taskModalTitle">编辑任务</h3>
+    <select id="taskTimeInput">
+      <option value="06:00">06:00</option><option value="06:30">06:30</option>
+      <option value="07:00">07:00</option><option value="07:30">07:30</option>
+      <option value="08:00" selected>08:00</option><option value="08:30">08:30</option>
+      <option value="09:00">09:00</option><option value="09:30">09:30</option>
+      <option value="10:00">10:00</option><option value="10:30">10:30</option>
+      <option value="11:00">11:00</option><option value="11:30">11:30</option>
+      <option value="12:00">12:00</option><option value="12:30">12:30</option>
+      <option value="13:00">13:00</option><option value="13:30">13:30</option>
+      <option value="14:00">14:00</option><option value="14:30">14:30</option>
+      <option value="15:00">15:00</option><option value="15:30">15:30</option>
+      <option value="16:00">16:00</option><option value="16:30">16:30</option>
+      <option value="17:00">17:00</option><option value="17:30">17:30</option>
+      <option value="18:00">18:00</option><option value="18:30">18:30</option>
+      <option value="19:00">19:00</option><option value="19:30">19:30</option>
+      <option value="20:00">20:00</option><option value="20:30">20:30</option>
+      <option value="21:00">21:00</option><option value="21:30">21:30</option>
+      <option value="22:00">22:00</option>
+    </select>
+    <input type="text" id="taskTextInput" placeholder="任务描述" maxlength="200">
+    <input type="text" id="taskNoteInput" placeholder="备注（可选）" maxlength="100">
+    <div class="btn-row">
+      <button class="btn-sm" style="background:#F3F4F6;color:var(--text);" onclick="closeTaskModal()">取消</button>
+      <button class="btn-sm btn-primary" onclick="saveTaskFromModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════ DATA STORAGE ══════════════ */
+const STORAGE_TASKS = 'wb2_tasks';
+const STORAGE_LEARN = 'wb2_learn';
+
+let tasks = JSON.parse(localStorage.getItem(STORAGE_TASKS) || '[]');
+let learnSubjects = JSON.parse(localStorage.getItem(STORAGE_LEARN) || '[]');
+
+// Default demo data
+if (learnSubjects.length === 0) {
+  learnSubjects = [
+    { id:1, name:'前端开发', icon:'💻', color:'#EEF2FF', progress:65, totalHours:12, targetHours:20 },
+    { id:2, name:'英语学习', icon:'📖', color:'#FFF7ED', progress:40, totalHours:8, targetHours:15 },
+    { id:3, name:'算法练习', icon:'🧮', color:'#ECFDF5', progress:80, totalHours:24, targetHours:30 },
+    { id:4, name:'读书笔记', icon:'✍️', color:'#F5F3FF', progress:25, totalHours:5, targetHours:10 },
+  ];
+  saveLearn();
+}
+let nextLearnId = Math.max(0, ...learnSubjects.map(s => s.id)) + 1;
+
+function saveTasks(){ localStorage.setItem(STORAGE_TASKS, JSON.stringify(tasks)); }
+function saveLearn(){ localStorage.setItem(STORAGE_LEARN, JSON.stringify(learnSubjects)); }
+
+let currentPage = 'tasks';
+let editingTaskId = null;
+
+/* ══════════════ HELPERS ══════════════ */
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function fmtDate(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function dateLabel(){
+  const now = new Date();
+  const w = ['日','一','二','三','四','五','六'];
+  return `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${w[now.getDay()]}`;
+}
+
+/* ══════════════ PAGE SWITCH ══════════════ */
+function switchPage(page){
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.sidebar-tab[data-page="${page}"]`).classList.add('active');
+  if (page === 'tasks') renderTasks();
+  if (page === 'learn') renderLearn();
+}
+
+/* ══════════════ TODAY TASKS ══════════════ */
+function getTodayTasks(){
+  const today = fmtDate(new Date());
+  return tasks.filter(t => t.date === today).sort((a,b) => a.time.localeCompare(b.time));
+}
+
+function renderTasks(){
+  document.getElementById('tasksDate').textContent = dateLabel();
+  const todayTasks = getTodayTasks();
+  const container = document.getElementById('tasksContent');
+
+  // Group by time of day
+  const morning = todayTasks.filter(t => t.time < '12:00');
+  const afternoon = todayTasks.filter(t => t.time >= '12:00' && t.time < '18:00');
+  const evening = todayTasks.filter(t => t.time >= '18:00');
+
+  let html = '';
+
+  const renderGroup = (label, items) => {
+    if (items.length === 0) return '';
+    let h = `<div class="task-section-label">${label}</div>`;
+    items.forEach(t => {
+      h += `
+      <div class="task-card ${t.done ? 'done' : ''}" id="task-${t.id}">
+        <div class="task-time" onclick="openEditTask(${t.id})">${t.time}</div>
+        <div class="task-body" onclick="openEditTask(${t.id})">
+          <div class="task-text">${escapeHtml(t.text)}</div>
+          ${t.note ? `<div class="task-note">${escapeHtml(t.note)}</div>` : ''}
+        </div>
+        <div class="task-actions">
+          <button class="task-btn check" onclick="toggleTask(${t.id})">${t.done ? '✅' : '⬜'}</button>
+          <button class="task-btn edit" onclick="openEditTask(${t.id})">✎</button>
+          <button class="task-btn del" onclick="deleteTask(${t.id})">×</button>
+        </div>
+      </div>`;
+    });
+    return h;
+  };
+
+  html += renderGroup('🌅 上午', morning);
+  html += renderGroup('☀️ 下午', afternoon);
+  html += renderGroup('🌙 晚上', evening);
+
+  if (todayTasks.length === 0) {
+    html = `<div class="empty-state"><span class="emoji">📋</span>今天还没有任务<br>在下方添加你的第一个任务吧</div>`;
+  }
+
+  // Quick add
+  html += `
+  <div class="add-task-row" style="margin-top:16px;">
+    <select id="quickTaskTime">
+      <option value="08:00">08:00</option><option value="09:00" selected>09:00</option>
+      <option value="10:00">10:00</option><option value="11:00">11:00</option>
+      <option value="12:00">12:00</option><option value="14:00">14:00</option>
+      <option value="15:00">15:00</option><option value="16:00">16:00</option>
+      <option value="17:00">17:00</option><option value="18:00">18:00</option>
+      <option value="19:00">19:00</option><option value="20:00">20:00</option>
+    </select>
+    <input type="text" id="quickTaskText" placeholder="快速添加任务..." maxlength="200">
+    <button class="btn-sm btn-primary" onclick="quickAddTask()">＋</button>
+  </div>`;
+
+  container.innerHTML = html;
+
+  // Enter to add
+  const qt = document.getElementById('quickTaskText');
+  if (qt) qt.addEventListener('keydown', e => { if (e.key === 'Enter') quickAddTask(); });
+}
+
+function quickAddTask(){
+  const time = document.getElementById('quickTaskTime').value;
+  const text = document.getElementById('quickTaskText').value.trim();
+  if (!text) { showToast('请输入任务内容'); return; }
+  tasks.push({ id: Date.now(), date: fmtDate(new Date()), time, text, note: '', done: false });
+  saveTasks();
+  renderTasks();
+  document.getElementById('quickTaskText').value = '';
+  showToast('任务已添加');
+}
+
+function toggleTask(id){
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; saveTasks(); renderTasks(); }
+}
+
+function deleteTask(id){
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTasks();
+  showToast('任务已删除');
+}
+
+function openEditTask(id){
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById('taskModalTitle').textContent = '编辑任务';
+  document.getElementById('taskTimeInput').value = t.time;
+  document.getElementById('taskTextInput').value = t.text;
+  document.getElementById('taskNoteInput').value = t.note || '';
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+
+function closeTaskModal(){
+  document.getElementById('taskModal').classList.add('hidden');
+  editingTaskId = null;
+}
+
+function saveTaskFromModal(){
+  const time = document.getElementById('taskTimeInput').value;
+  const text = document.getElementById('taskTextInput').value.trim();
+  const note = document.getElementById('taskNoteInput').value.trim();
+  if (!text) { showToast('请输入任务描述'); return; }
+
+  if (editingTaskId) {
+    const t = tasks.find(t => t.id === editingTaskId);
+    if (t) { t.time = time; t.text = text; t.note = note; }
+  } else {
+    tasks.push({ id: Date.now(), date: fmtDate(new Date()), time, text, note, done: false });
+  }
+  saveTasks();
+  closeTaskModal();
+  renderTasks();
+  showToast(editingTaskId ? '任务已更新' : '任务已添加');
+  editingTaskId = null;
+}
+
+// Modal backdrop click to close
+document.getElementById('taskModal').addEventListener('click', function(e){
+  if (e.target === this) closeTaskModal();
+});
+
+/* ══════════════ LEARNING ══════════════ */
+function renderLearn(){
+  document.getElementById('learnDate').textContent = dateLabel();
+  const container = document.getElementById('learnContent');
+
+  const totalHrs = learnSubjects.reduce((s,c) => s + c.totalHours, 0);
+  const targetHrs = learnSubjects.reduce((s,c) => s + c.targetHours, 0);
+  const avgProgress = learnSubjects.length > 0
+    ? Math.round(learnSubjects.reduce((s,c) => s + c.progress, 0) / learnSubjects.length)
+    : 0;
+
+  let html = `
+  <div class="learn-stats">
+    <div class="learn-stat">
+      <div class="stat-num">${learnSubjects.length}</div>
+      <div class="stat-label">学习科目</div>
+    </div>
+    <div class="learn-stat">
+      <div class="stat-num">${totalHrs}h</div>
+      <div class="stat-label">累计学习</div>
+    </div>
+    <div class="learn-stat">
+      <div class="stat-num">${avgProgress}%</div>
+      <div class="stat-label">平均进度</div>
+    </div>
+  </div>`;
+
+  learnSubjects.forEach(s => {
+    const ratio = s.targetHours > 0 ? Math.round(s.totalHours / s.targetHours * 100) : 0;
+    html += `
+    <div class="learn-card">
+      <div class="learn-card-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:20px;">${s.icon}</span>${escapeHtml(s.name)}
+        </h3>
+      </div>
+      <div class="learn-subject">
+        <div class="sub-info">
+          <div class="sub-name">学习进度</div>
+          <div class="sub-meta">${s.totalHours}h / ${s.targetHours}h 目标</div>
+        </div>
+        <div class="sub-progress">
+          <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,ratio)}%;background:var(--primary)"></div></div>
+          <div class="progress-text">${ratio}%</div>
+        </div>
+        <div class="sub-actions">
+          <button class="sub-btn plus" onclick="adjustHours(${s.id}, 1)" title="+1小时">＋</button>
+          <button class="sub-btn minus" onclick="adjustHours(${s.id}, -1)" title="-1小时">−</button>
+          <button class="sub-btn del" onclick="deleteSubject(${s.id})">×</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button class="btn-sm" style="background:#EEF2FF;color:var(--primary);font-size:12px;" onclick="editSubjectName(${s.id})">✎ 重命名</button>
+        <button class="btn-sm" style="background:#ECFDF5;color:var(--success);font-size:12px;" onclick="editSubjectGoal(${s.id})">🎯 改目标</button>
+      </div>
+    </div>`;
+  });
+
+  html += `
+  <div class="add-learn-row">
+    <input type="text" id="newSubjectInput" placeholder="添加新科目..." maxlength="20">
+    <input type="number" id="newSubjectGoal" placeholder="目标(h)" min="1" max="999" style="width:70px;">
+    <button class="btn-sm btn-primary" onclick="addSubject()">＋</button>
+  </div>`;
+
+  container.innerHTML = html;
+
+  const ni = document.getElementById('newSubjectInput');
+  if (ni) ni.addEventListener('keydown', e => { if (e.key === 'Enter') addSubject(); });
+}
+
+function addSubject(){
+  const name = document.getElementById('newSubjectInput').value.trim();
+  const goal = parseInt(document.getElementById('newSubjectGoal').value) || 10;
+  if (!name) { showToast('请输入科目名称'); return; }
+  const icons = ['📘','📙','📕','📗','💡','🎯','🔬','📐','🎨','🎵'];
+  learnSubjects.push({
+    id: nextLearnId++, name, icon: icons[Math.floor(Math.random()*icons.length)],
+    color: '#EEF2FF', progress: 0, totalHours: 0, targetHours: goal
+  });
+  saveLearn();
+  renderLearn();
+  document.getElementById('newSubjectInput').value = '';
+  document.getElementById('newSubjectGoal').value = '';
+  showToast('科目已添加');
+}
+
+function adjustHours(id, delta){
+  const s = learnSubjects.find(s => s.id === id);
+  if (!s) return;
+  s.totalHours = Math.max(0, s.totalHours + delta);
+  s.progress = s.targetHours > 0 ? Math.round(s.totalHours / s.targetHours * 100) : 0;
+  saveLearn();
+  renderLearn();
+  if (delta > 0) showToast(`+${delta} 小时`);
+}
+
+function deleteSubject(id){
+  if (!confirm('删除这个科目？')) return;
+  learnSubjects = learnSubjects.filter(s => s.id !== id);
+  saveLearn();
+  renderLearn();
+  showToast('科目已删除');
+}
+
+function editSubjectName(id){
+  const s = learnSubjects.find(s => s.id === id);
+  if (!s) return;
+  const newName = prompt('修改科目名称：', s.name);
+  if (newName && newName.trim()) { s.name = newName.trim(); saveLearn(); renderLearn(); showToast('名称已更新'); }
+}
+
+function editSubjectGoal(id){
+  const s = learnSubjects.find(s => s.id === id);
+  if (!s) return;
+  const newGoal = prompt('修改目标小时数：', s.targetHours);
+  if (newGoal && parseInt(newGoal) > 0) {
+    s.targetHours = parseInt(newGoal);
+    s.progress = s.targetHours > 0 ? Math.round(s.totalHours / s.targetHours * 100) : 0;
+    saveLearn(); renderLearn();
+    showToast('目标已更新');
+  }
+}
+
+/* ══════════════ INIT ══════════════ */
+function init(){
+  renderTasks();
+  // Update dates
+  document.getElementById('tasksDate').textContent = dateLabel();
+  document.getElementById('learnDate').textContent = dateLabel();
+}
+
+init();
+</script>
+</body>
+</html>
